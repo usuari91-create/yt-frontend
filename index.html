@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Descargador Web</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: white; font-family: 'Inter', sans-serif; }
+        .loader { border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #3b82f6; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-xl bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700">
+        <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Descargador Universal</h1>
+        
+        <div class="mb-6">
+            <label class="block text-sm font-medium mb-2 text-slate-300">Enlace del Video</label>
+            <input type="text" id="urlInput" class="w-full p-3 rounded-lg bg-slate-900 border border-slate-600 focus:border-blue-500 outline-none" placeholder="https://youtube.com/watch?v=...">
+        </div>
+
+        <div class="flex gap-4 mb-6">
+            <button id="btnVideo" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition">Descargar Video (MP4)</button>
+            <button id="btnAudio" class="flex-1 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition">Descargar Audio (MP3)</button>
+        </div>
+
+        <div id="statusArea" class="text-center min-h-[50px] flex items-center justify-center">
+            <!-- Aquí aparecerá el loader o mensajes -->
+        </div>
+    </div>
+
+    <script>
+        // ⚠️ IMPORTANTE: Cambia esta URL por la de tu servidor en Render/Railway cuando lo despliegues
+        const API_URL = "http://127.0.0.1:8080/api/download"; 
+
+        async function iniciarDescarga(formato) {
+            const url = document.getElementById('urlInput').value.trim();
+            const statusArea = document.getElementById('statusArea');
+
+            if (!url) {
+                alert("Por favor, ingresa una URL válida.");
+                return;
+            }
+
+            // Mostrar loader
+            statusArea.innerHTML = `<div class="loader mr-3"></div> <span>Procesando... esto puede tardar unos minutos.</span>`;
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url, format: formato })
+                });
+
+                if (!response.ok) throw new Error("El servidor rechazó la petición.");
+
+                // Convertir la respuesta en un archivo descargable
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                
+                // Intentar obtener el nombre del archivo de las cabeceras
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = formato === 'audio' ? 'audio.mp3' : 'video.mp4';
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                    if (match) filename = match[1];
+                }
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(downloadUrl);
+
+                statusArea.innerHTML = `<span class="text-green-400 font-bold">¡Descarga completada!</span>`;
+            } catch (error) {
+                statusArea.innerHTML = `<span class="text-red-400">Error: ${error.message}</span>`;
+            }
+        }
+
+        document.getElementById('btnVideo').addEventListener('click', () => iniciarDescarga('video'));
+        document.getElementById('btnAudio').addEventListener('click', () => iniciarDescarga('audio'));
+    </script>
+</body>
+</html>
